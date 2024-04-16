@@ -29,11 +29,11 @@ class Prompt:
     is_favorite: bool = False
     created_at: datetime.datetime = None
 
+def callback():
+    st.session_state.first_form = True
 
-
-def prompt_form(key, prompt=Prompt()):
-    print(key)
-    with st.form(key=f'prompt{key}', clear_on_submit=True):
+def prompt_form(prompt=Prompt()):
+    with st.form(key=f'prompt_form', clear_on_submit=True):
         title = st.text_input('Title', value=prompt.title)
         prompt_text = st.text_area('Prompt', value=prompt.prompt)
         is_favorite = st.checkbox('Favorite', value=prompt.is_favorite)
@@ -55,25 +55,31 @@ def display_prompts(prompts):
                 cur.execute("UPDATE prompts SET is_favorite = NOT is_favorite WHERE id = %s", (p[0],))
                 con.commit()
                 st.rerun()
-            if st.button("Edit", key=f"edit_{p[0]}"):
-                new_prompt = prompt_form(p[0], Prompt(p[0], p[1], p[2], p[3], p[4]))
-                if new_prompt:
-                    print(new_prompt, type(new_prompt))
-                    cur.execute("UPDATE prompts SET title = %s, prompt = %s, is_favorite = %s WHERE id = %s", 
-                        (new_prompt.title, new_prompt.prompt, new_prompt.is_favorite, new_prompt.id))
-                    con.commit()
-                    st.success("Prompt updated successfully!")
-                    # st.rerun()
+            if st.button("Edit", key=f"edit_{p[0]}", on_click=callback) or st.session_state.first_form:
+                with st.form(key=f'prompt_{p[0]}', clear_on_submit=True):
+                    title = st.text_input('Title', value=p[1])
+                    prompt_text = st.text_area('Prompt', value=p[2])
+                    is_favorite = st.checkbox('Favorite', value=p[3])
+                    ret = st.form_submit_button('Submit')
+                    if ret:
+                        print('in ret')
+                        cur.execute("UPDATE prompts SET title = %s, prompt = %s, is_favorite = %s WHERE id = %s", (title, prompt_text, is_favorite, p[0]))
+                        con.commit()
+                        st.success("Prompt updated successfully!")
+                        st.rerun()
 
     
 
 st.title('Prompt Storage')
 st.subheader('A simple app to store and retrieve prompts')
 
-cur.execute('SELECT COUNT(*) FROM prompts')
-count = cur.fetchone()[0]
+if 'first_form' not in st.session_state:
+    st.session_state.first_form = False
 
-prompt = prompt_form(count+1)
+
+
+
+prompt = prompt_form()
 if prompt:
     if prompt.id:  # This means we are updating an existing prompt
         cur.execute("UPDATE prompts SET title = %s, prompt = %s, is_favorite = %s WHERE id = %s", 
